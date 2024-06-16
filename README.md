@@ -1,1 +1,65 @@
 # LISTA_NR_3_16_06_24K2
+
+
+import subprocess
+import json
+
+
+def send_request(url):
+    try:
+        response = subprocess.run(['curl', '-s', '-w', '\n%{http_code}', url], capture_output=True, text=True)
+        content, status_code = response.stdout.rsplit('\n', 1)
+        return content, int(status_code)
+    except Exception as e:
+        print(f"Error occurred while sending request: {e}")
+        return None, 0
+
+
+def check_response(content, status_code, expected_status, key_elements):
+    if status_code != expected_status:
+        return False, f"Expected status {expected_status}, but got {status_code}"
+
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        return False, "Failed to parse JSON"
+
+    for key in key_elements:
+        if key not in data:
+            return False, f"Missing key: {key}"
+
+    return True, "PASSED"
+
+
+def test_endpoint(url, expected_status, key_elements):
+    content, status_code = send_request(url)
+    result, message = check_response(content, status_code, expected_status, key_elements)
+    return result, message
+
+
+def main():
+    tests = [
+        {
+            "url": "https://jsonplaceholder.typicode.com/posts/1",
+            "expected_status": 200,
+            "key_elements": ["userId", "id", "title", "body"]
+        },
+        {
+            "url": "https://jsonplaceholder.typicode.com/users/1",
+            "expected_status": 200,
+            "key_elements": ["id", "name", "username", "email"]
+        },
+        {
+            "url": "https://jsonplaceholder.typicode.com/comments/1",
+            "expected_status": 200,
+            "key_elements": ["postId", "id", "name", "email", "body"]
+        }
+    ]
+
+    for i, test in enumerate(tests, start=1):
+        result, message = test_endpoint(test["url"], test["expected_status"], test["key_elements"])
+        print(f"Test {i}: {message}")
+
+
+if __name__ == "__main__":
+    main()
